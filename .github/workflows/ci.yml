@@ -93,6 +93,9 @@ jobs:
     name: Build Binary
     runs-on: ubuntu-latest
     needs: [format, lint, typecheck, test]
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
