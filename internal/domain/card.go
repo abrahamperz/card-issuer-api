@@ -171,7 +171,7 @@ func (c *Card) canTransitionTo(newStatus CardStatus) bool {
 }
 
 func (c *Card) Issue(pan PAN, expiryMonth, expiryYear int) error {
-	if c.Status != CardStatusPending {
+	if !c.canTransitionTo(CardStatusActive) {
 		return fmt.Errorf("%w: cannot issue card from status %s (must be PENDING)", ErrInvalidTransition, c.Status)
 	}
 	if err := pan.Validate(); err != nil {
@@ -188,7 +188,7 @@ func (c *Card) Issue(pan PAN, expiryMonth, expiryYear int) error {
 }
 
 func (c *Card) Suspend() error {
-	if c.Status != CardStatusActive {
+	if !c.canTransitionTo(CardStatusSuspended) {
 		return fmt.Errorf("%w: cannot suspend card from status %s (must be ACTIVE)", ErrInvalidTransition, c.Status)
 	}
 
@@ -210,7 +210,7 @@ func (c *Card) Reactivate() error {
 }
 
 func (c *Card) Close() error {
-	if c.Status == CardStatusClosed {
+	if !c.canTransitionTo(CardStatusClosed) {
 		return fmt.Errorf("%w: card is already CLOSED (terminal state)", ErrInvalidTransition)
 	}
 
