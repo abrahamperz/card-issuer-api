@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -40,8 +38,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -62,8 +58,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -83,8 +77,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -105,8 +97,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -129,8 +119,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -173,8 +161,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
