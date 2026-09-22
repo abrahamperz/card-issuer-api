@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_ADDR: ":8080"
+      DATABASE_DSN: "postgres://cardissuer:cardissuer_secret@postgres:5432/card_issuer?sslmode=disable"
+      # SECURITY: In production, use a secrets manager (Vault, AWS Secrets Manager, etc.)
+      # These are hex-encoded 32-byte keys for development ONLY
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      BLIND_INDEX_KEY: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "json"
+      BATCH_MAX_SIZE: "1000"
+      BATCH_CHUNK_SIZE: "50"
+      BATCH_WORKER_COUNT: "4"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: card_issuer
+      POSTGRES_USER: cardissuer
+      POSTGRES_PASSWORD: cardissuer_secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardissuer -d card_issuer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
