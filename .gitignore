@@ -26,4 +26,6 @@ coverage.txt
 # OS artifacts
 .DS_Store
 Thumbs.db
-server
+
+# Build output (but not cmd/)
+bin/server
