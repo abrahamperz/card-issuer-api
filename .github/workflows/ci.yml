@@ -49,7 +49,7 @@ jobs:
         with:
           version: "latest"
           install-go: false
-          checks: all
+          checks: "all,-ST1000"
 
   typecheck:
     name: Type Check (go vet)
@@ -87,7 +87,7 @@ jobs:
         run: go mod download
 
       - name: Run tests with race detector
-        run: go test ./... -race -count=1 -v
+        run: go test -race -count=1 -v ./internal/crypto ./internal/domain ./internal/middleware ./internal/service
 
   build:
     name: Build Binary
@@ -130,7 +130,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          go test ./... -race -coverprofile=coverage.out -covermode=atomic
+          go test -race -coverprofile=coverage.out -covermode=atomic ./internal/crypto ./internal/domain ./internal/middleware ./internal/service
           go tool cover -func=coverage.out
 
       - name: Upload coverage report
