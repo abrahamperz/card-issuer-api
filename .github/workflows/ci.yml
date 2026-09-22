@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  GO_VERSION: '1.23'
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Verify gofmt
+        run: |
+          if [ -n "$(gofmt -l -s .)" ]; then
+            echo "The following files are not formatted:"
+            gofmt -l -s .
+            exit 1
+          fi
+        working-directory: ./card-issuer-api
+
+      - name: Verify go vet
+        run: go vet ./...
+        working-directory: ./card-issuer-api
+
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: "latest"
+          install_go: false
+          args: ./...
+        working-directory: ./card-issuer-api
+
+  test:
+    name: Tests (Race Detector)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: ./card-issuer-api
+
+      - name: Run tests with race detector
+        run: go test ./... -race -count=1 -v
+        working-directory: ./card-issuer-api
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: ./card-issuer-api
+
+      - name: Build binary
+        run: go build -o bin/card-issuer-api ./cmd/server
+        working-directory: ./card-issuer-api
+
+      - name: Verify binary exists
+        run: test -f bin/card-issuer-api
+        working-directory: ./card-issuer-api
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: ./card-issuer-api
+
+      - name: Run tests with coverage
+        run: |
+          go test ./... -race -coverprofile=coverage.out -covermode=atomic
+          go tool cover -func=coverage.out
+        working-directory: ./card-issuer-api
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: card-issuer-api/coverage.out
+          retention-days: 7
+
+  integration:
+    name: Integration (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: card_issuer
+          POSTGRES_PASSWORD: card_issuer
+          POSTGRES_DB: card_issuer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U card_issuer"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: ./card-issuer-api
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U card_issuer && break
+            sleep 1
+          done
+
+      - name: Run migrations
+        run: |
+          for f in migrations/*.sql; do
+            echo "Running $f..."
+            PGPASSWORD=card_issuer psql -h localhost -U card_issuer -d card_issuer -f "$f"
+          done
+        working-directory: ./card-issuer-api
+
+      - name: Run integration tests
+        env:
+          STORAGE_DRIVER: postgres
+          DATABASE_DSN: "postgres://card_issuer:card_issuer@localhost:5432/card_issuer?sslmode=disable"
+          ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          BLIND_INDEX_KEY: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+        run: |
+          go test ./internal/repository/... -race -count=1 -v
+        working-directory: ./card-issuer-api
